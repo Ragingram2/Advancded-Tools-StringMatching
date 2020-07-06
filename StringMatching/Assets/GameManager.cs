@@ -3,14 +3,23 @@ using System.Collections.Generic;
 using UnityEngine;
 using TMPro;
 using System;
+using UnityEngine.Experimental.AI;
 
 public class GameManager : MonoBehaviour
 {
-    private TMP_Text searchWord;
-    private TMP_Text searchSubject;
+    private string word = "Rowan";
+    private string subject;
     private string[] stringMatchingMethods;
+
+    //"DNA","2CharSequence","Lorem ipsum","SimilarWordings"
+    private string[] dataSets;
     private string currentMethod;
+    private string dataSetName;
+    private float time;
+    private float preprocessingTime;
     bool found = false;
+
+    int datalen = 100000;
 
     DateTime before;
     DateTime after;
@@ -25,11 +34,13 @@ public class GameManager : MonoBehaviour
     // Start is called before the first frame update
     void Start()
     {
-        searchWord = GameObject.Find("SearchString").GetComponent<TMP_Text>();
-        searchSubject = GameObject.Find("Subject").GetComponent<TMP_Text>();
-
-        stringMatchingMethods = new string[] { "StraightForward", "Knuth-Morris-Pratt", "Boyer-Moore(New)"};
-        currentMethod = stringMatchingMethods[0];
+        Sheets.ConnectToGoogle();
+        stringMatchingMethods = new string[] { "StraightForward", "Knuth-Morris-Pratt", "Boyer-Moore"};
+        dataSets = new string[4];
+        DNAInit();
+        TwoCharInit();
+        LoremIpsumInit();
+        SimilarWordings();
     }
 
     // Update is called once per frame
@@ -40,67 +51,111 @@ public class GameManager : MonoBehaviour
 
     public void OnClick()
     {
-      
-        int len;
-        found = false;
-        switch (currentMethod)
+        Sheets.ClearRequest();
+        for (int i = 0;i<3;i++)
         {
-            case "StraightForward":
-                Debug.Log("StraightForward");
-
-                before = DateTime.Now;
-
-                len = StraighForward(SearchSubject.Substring(0, SearchSubject.Length - 1), SearchWord.Substring(0, SearchWord.Length - 1));
-
-                 after = DateTime.Now;
-                duration = after.Subtract(before);
-
-                Debug.Log("Duration in milliseconds: " + duration.Milliseconds);
-                if (len > 0)
-                {
-                    found = true;
-                    Debug.Log("Found");
-                }
-                break;
-            case "Knuth-Morris-Pratt":
-                Debug.Log("Knuth-Morris-Pratt");
-
-                before = DateTime.Now;
-
-                len = KnuthMorrisPratt(SearchSubject.Substring(0, SearchSubject.Length - 1), SearchWord.Substring(0, SearchWord.Length - 1));
-
-                after = DateTime.Now;
-                duration = after.Subtract(before);
-
-                Debug.Log("Total Duration in milliseconds: " + duration.Milliseconds);
-                if (len > 0)
-                {
-                    found = true;
-                    Debug.Log("Found");
-                }
-                break;
-             case "BoyerMoore":
-                Debug.Log("BoyerMoore");
-
-                before = DateTime.Now;
-
-                len = BoyerMoore(SearchSubject.Substring(0, SearchSubject.Length - 1), SearchWord.Substring(0, SearchWord.Length - 1));
-
-                after = DateTime.Now;
-                duration = after.Subtract(before);
-
-                Debug.Log("Total Duration in milliseconds: " + duration.Milliseconds);
-                if (len > 0)
-                {
-                    found = true;
-                    Debug.Log("Found");
-                }
-                break;
+            for (int j = 0;j<4;j++)
+            {
+                Expirement(i,j);
+            }
         }
 
     }
+    
 
-    int StraighForward(String txt, String pat)
+    void Expirement(int algorithim,int dataSet)
+    {
+        if(dataSet == 1)
+        {
+            word = "aabb";
+        }
+        else
+        {
+            word = "Rowan";
+        }
+        switch (dataSet)
+        {
+            case 0:
+                dataSetName = "DNA";
+                break;
+            case 1:
+                dataSetName = "2Char";
+                break;
+            case 2:
+                dataSetName = "LoremIpsum";
+                break;
+            case 3:
+                dataSetName = "SimilarWords";
+                break;
+        }
+
+        int len;
+        found = false;
+        subject = dataSets[dataSet];
+        currentMethod = stringMatchingMethods[algorithim];
+        switch (currentMethod)
+        {
+            case "StraightForward":
+                //Debug.Log("StraightForward");
+
+                before = DateTime.Now;
+
+                len = StraighForward(subject, word);
+
+                after = DateTime.Now;
+                duration = after.Subtract(before);
+                time = duration.Milliseconds;
+                //Debug.Log("Duration in milliseconds: " + duration.Milliseconds);
+        
+                if (len > 0)
+                {
+                    found = true;
+                    Debug.Log("Found");
+                }
+                Sheets.AddScoreEntry(currentMethod, word, dataSetName, time, preprocessingTime,found);
+                break;
+            case "Knuth-Morris-Pratt":
+                //Debug.Log("Knuth-Morris-Pratt");
+
+                before = DateTime.Now;
+
+                len = KnuthMorrisPratt(subject, word);
+
+                after = DateTime.Now;
+                duration = after.Subtract(before);
+                time = duration.Milliseconds;
+                //Debug.Log("Total Duration in milliseconds: " + duration.Milliseconds);
+
+                if (len > 0)
+                {
+                    found = true;
+                    Debug.Log("Found");
+                }
+                Sheets.AddScoreEntry(currentMethod, word, dataSetName, time, preprocessingTime, found);
+                break;
+            case "Boyer-Moore":
+               // Debug.Log("BoyerMoore");
+
+                before = DateTime.Now;
+
+                len = BoyerMoore(subject, word);
+
+                after = DateTime.Now;
+                duration = after.Subtract(before);
+                time = duration.Milliseconds;
+                //Debug.Log("Total Duration in milliseconds: " + duration.Milliseconds);
+  
+                if (len > 0)
+                {
+                    found = true;
+                    Debug.Log("Found");
+                }
+                Sheets.AddScoreEntry(currentMethod, word, dataSetName, time, preprocessingTime, found);
+                break;
+        }
+    }
+
+    int StraighForward(string txt, string pat)
     {
         int M = pat.Length;
         int N = txt.Length;
@@ -129,7 +184,6 @@ public class GameManager : MonoBehaviour
         }
         return -1;
     }
-
     int KnuthMorrisPratt(String txt, String pat)
     {
         int M = pat.Length;
@@ -142,7 +196,6 @@ public class GameManager : MonoBehaviour
 
         // Preprocess the pattern (calculate lps[] 
         // array) 
-        Debug.Log("\tKnuth-Morris-Pratt Preprocessing");
 
         before = DateTime.Now;
 
@@ -151,7 +204,7 @@ public class GameManager : MonoBehaviour
         after = DateTime.Now;
         duration = after.Subtract(before);
 
-        Debug.Log("\tDuration in milliseconds: " + duration.Milliseconds);
+        preprocessingTime = duration.Milliseconds;
 
         int i = 0; // index for txt[] 
         while (i < N)
@@ -218,7 +271,6 @@ public class GameManager : MonoBehaviour
             }
         }
     }
-
     int BoyerMoore(String txt,String pat)
     {
         int m = pat.Length;
@@ -229,7 +281,6 @@ public class GameManager : MonoBehaviour
         /* Fill the bad character array by calling  
             the preprocessing function badCharHeuristic()  
             for given pattern */
-        Debug.Log("\tBoyerMoore Preprocessing");
 
         before = DateTime.Now;
 
@@ -237,7 +288,7 @@ public class GameManager : MonoBehaviour
         after = DateTime.Now;
         duration = after.Subtract(before);
 
-        Debug.Log("Total Duration in milliseconds: " + duration.Milliseconds);
+        preprocessingTime = duration.Milliseconds;
 
         int s = 0; // s is shift of the pattern with  
                    // respect to text  
@@ -294,19 +345,82 @@ public class GameManager : MonoBehaviour
         for (i = 0; i < size; i++)
             badchar[(int)str[i]] = i;
     }
-
     public void UpdateAlgorithim(TMP_Dropdown dropDown)
     {
         currentMethod = stringMatchingMethods[dropDown.value];
     }
 
-    public string SearchWord
+    void DNAInit()
     {
-        get { return searchWord.text; }
+        int num;
+        string output = "";
+        int pos = UnityEngine.Random.Range(0, datalen - word.Length);
+        for (int i = 0; i < datalen; i++)
+        {
+            num = UnityEngine.Random.Range(0, 4);
+            if (i == pos)
+            {
+                output += word;
+            }
+            if (num == 0)
+            {
+                output += "A";
+            }
+            if (num == 1)
+            {
+                output += "T";
+            }
+            if (num == 2)
+            {
+                output += "C";
+            }
+            if (num == 3)
+            {
+                output += "G";
+            }
+        }
+        dataSets[0] = output;
+
     }
-    public string SearchSubject
+    void TwoCharInit()
     {
-        get { return searchSubject.text; }
+        int len1 = UnityEngine.Random.Range(0,datalen-100);
+        int len2 =datalen-len1;
+        string output = "";
+        for(int i =0;i<len1;i++)
+        {
+            output += "a";
+        }
+        output += "aabb";
+        for (int j = 0; j < len2; j++)
+        {
+            output += "b";
+        }
+        dataSets[1] = output;
     }
+    void LoremIpsumInit()
+    {
+        string loremIpsum = "";
+        for (int i = 0;i<datalen/1000;i++)
+        {
+            loremIpsum += Resources.Load<TextAsset>("LoremIpsum").text.Trim('\n');
+        }
+        int num = UnityEngine.Random.Range(0,loremIpsum.Length-word.Length);
+        string first = loremIpsum.Substring(0,num);
+        string second = loremIpsum.Substring(num, loremIpsum.Length-num);
+        dataSets[2] = first + word + second;
+    }
+    void SimilarWordings()
+    {
+        string output = "";
+        for(int i = 0;i<datalen;i++)
+        {
+            int len = UnityEngine.Random.Range(0,word.Length-1);
+            output += word.Substring(len);
+        }
+        dataSets[3] = output;
+    }
+
+
 
 }
