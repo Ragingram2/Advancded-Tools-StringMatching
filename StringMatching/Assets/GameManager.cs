@@ -4,6 +4,7 @@ using UnityEngine;
 using TMPro;
 using System;
 using UnityEngine.Experimental.AI;
+using Google.Apis.Sheets.v4.Data;
 
 public class GameManager : MonoBehaviour
 {
@@ -18,6 +19,11 @@ public class GameManager : MonoBehaviour
     private float time;
     private float preprocessingTime;
     bool found = false;
+
+    private List<float> sumTime = new List<float>();
+    private List<float> sumProcessing = new List<float>();
+    private float avgTime;
+    private float avgProcessing;
 
     int datalen = 100000;
 
@@ -35,7 +41,7 @@ public class GameManager : MonoBehaviour
     void Start()
     {
         Sheets.ConnectToGoogle();
-        stringMatchingMethods = new string[] { "StraightForward", "Knuth-Morris-Pratt", "Boyer-Moore"};
+        stringMatchingMethods = new string[] { "StraightForward", "Knuth-Morris-Pratt", "Boyer-Moore" };
         dataSets = new string[4];
         DNAInit();
         TwoCharInit();
@@ -52,20 +58,42 @@ public class GameManager : MonoBehaviour
     public void OnClick()
     {
         Sheets.ClearRequest();
-        for (int i = 0;i<3;i++)
+
+        for (int i = 0; i < 3; i++)
         {
-            for (int j = 0;j<4;j++)
+            for (int j = 0; j < 4; j++)
             {
-                Expirement(i,j);
+                for (int index = 0; index < 1; index++)
+                {
+                    Expirement(i, j);
+                    //float sum1 = 0;
+                    //float sum2 = 0;
+                    //for(int l = 0;l<sumProcessing.Count;l++)
+                    //{
+                    //    sum1 += sumProcessing[l];
+                    //}
+                    //for (int l = 0; l < sumTime.Count; l++)
+                    //{
+                    //    sum2 += sumTime[l];
+                    //}
+
+                    //avgTime = sum1 / sumTime.Count;
+                    //avgProcessing = sum2 / sumProcessing.Count;
+                    avgTime = time;
+                    avgProcessing = preprocessingTime;
+                    Sheets.AddScoreEntry(currentMethod, word, dataSetName, avgTime, avgProcessing, true);
+                }
+
             }
         }
 
-    }
-    
 
-    void Expirement(int algorithim,int dataSet)
+    }
+
+
+    void Expirement(int algorithim, int dataSet)
     {
-        if(dataSet == 1)
+        if (dataSet == 1)
         {
             word = "aabb";
         }
@@ -106,13 +134,13 @@ public class GameManager : MonoBehaviour
                 duration = after.Subtract(before);
                 time = duration.Milliseconds;
                 //Debug.Log("Duration in milliseconds: " + duration.Milliseconds);
-        
+
                 if (len > 0)
                 {
                     found = true;
                     Debug.Log("Found");
                 }
-                Sheets.AddScoreEntry(currentMethod, word, dataSetName, time, preprocessingTime,found);
+                sumTime.Add(time);
                 break;
             case "Knuth-Morris-Pratt":
                 //Debug.Log("Knuth-Morris-Pratt");
@@ -131,10 +159,10 @@ public class GameManager : MonoBehaviour
                     found = true;
                     Debug.Log("Found");
                 }
-                Sheets.AddScoreEntry(currentMethod, word, dataSetName, time, preprocessingTime, found);
+                sumTime.Add(time);
                 break;
             case "Boyer-Moore":
-               // Debug.Log("BoyerMoore");
+                // Debug.Log("BoyerMoore");
 
                 before = DateTime.Now;
 
@@ -144,13 +172,13 @@ public class GameManager : MonoBehaviour
                 duration = after.Subtract(before);
                 time = duration.Milliseconds;
                 //Debug.Log("Total Duration in milliseconds: " + duration.Milliseconds);
-  
+
                 if (len > 0)
                 {
                     found = true;
                     Debug.Log("Found");
                 }
-                Sheets.AddScoreEntry(currentMethod, word, dataSetName, time, preprocessingTime, found);
+                sumTime.Add(time);
                 break;
         }
     }
@@ -205,6 +233,7 @@ public class GameManager : MonoBehaviour
         duration = after.Subtract(before);
 
         preprocessingTime = duration.Milliseconds;
+        sumProcessing.Add(preprocessingTime);
 
         int i = 0; // index for txt[] 
         while (i < N)
@@ -219,7 +248,7 @@ public class GameManager : MonoBehaviour
                 Console.Write("Found pattern "
                               + "at index " + (i - j));
                 j = lps[j - 1];
-                return (i-j);
+                return (i - j);
             }
 
             // mismatch after j matches 
@@ -271,7 +300,7 @@ public class GameManager : MonoBehaviour
             }
         }
     }
-    int BoyerMoore(String txt,String pat)
+    int BoyerMoore(String txt, String pat)
     {
         int m = pat.Length;
         int n = txt.Length;
@@ -289,6 +318,7 @@ public class GameManager : MonoBehaviour
         duration = after.Subtract(before);
 
         preprocessingTime = duration.Milliseconds;
+        sumProcessing.Add(preprocessingTime);
 
         int s = 0; // s is shift of the pattern with  
                    // respect to text  
@@ -308,7 +338,7 @@ public class GameManager : MonoBehaviour
             if (j < 0)
             {
                 Console.WriteLine("Patterns occur at shift = " + s);
-                
+
                 /* Shift the pattern so that the next  
                     character in text aligns with the last  
                     occurrence of it in pattern.  
@@ -384,40 +414,54 @@ public class GameManager : MonoBehaviour
     }
     void TwoCharInit()
     {
-        int len1 = UnityEngine.Random.Range(0,datalen-100);
-        int len2 =datalen-len1;
         string output = "";
-        for(int i =0;i<len1;i++)
+        int num;
+        int pos = UnityEngine.Random.Range(0, datalen - 100);
+        for (int i = 0; i < datalen; i++)
         {
-            output += "a";
-        }
-        output += "aabb";
-        for (int j = 0; j < len2; j++)
-        {
-            output += "b";
+            num = UnityEngine.Random.Range(0, 2);
+            if (i == pos)
+            {
+                output += "aaaabbbb";
+            }
+            if (num == 0)
+            {
+                output += "a";
+            }
+            else if (num == 1)
+            {
+                output += "b";
+            }
+
         }
         dataSets[1] = output;
     }
     void LoremIpsumInit()
     {
         string loremIpsum = "";
-        for (int i = 0;i<datalen/1000;i++)
+        for (int i = 0; i < datalen / 1000; i++)
         {
             loremIpsum += Resources.Load<TextAsset>("LoremIpsum").text.Trim('\n');
         }
-        int num = UnityEngine.Random.Range(0,loremIpsum.Length-word.Length);
-        string first = loremIpsum.Substring(0,num);
-        string second = loremIpsum.Substring(num, loremIpsum.Length-num);
+        int num = UnityEngine.Random.Range(0, loremIpsum.Length - word.Length);
+        string first = loremIpsum.Substring(0, num);
+        string second = loremIpsum.Substring(num, loremIpsum.Length - num);
         dataSets[2] = first + word + second;
     }
     void SimilarWordings()
     {
         string output = "";
-        for(int i = 0;i<datalen;i++)
+        int pos = UnityEngine.Random.Range(0, datalen);
+        for (int i = 0; i < datalen; i++)
         {
-            int len = UnityEngine.Random.Range(0,word.Length-1);
-            output += word.Substring(len);
+            int len = UnityEngine.Random.Range(0, word.Length - 2);
+            output += word.Substring(0, len);
+            if (i == pos)
+            {
+                output += word;
+            }
         }
+        Debug.Log(output);
         dataSets[3] = output;
     }
 
